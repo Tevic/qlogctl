@@ -1,5 +1,6 @@
 # logctl
 
+```
 qbana help
 
 qbana login <ak> <sk>
@@ -17,3 +18,4 @@ qbana showRepo <repoName>
 qbana query <query>
 
 qbana -repo <repoName> -sort timestamp:desc -size 500 query <query>
+```

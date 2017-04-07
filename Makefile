@@ -1,5 +1,5 @@
 clean:
-	go clean -i ./...
+	go clean -i ./..
 
 build:
-	go build -o ./bin/qbana ./src/view/main.go
+	go build -o ./bin/logctl ./src/logctl.go

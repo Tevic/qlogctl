@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
+	"gopkg.in/urfave/cli.v2"
 	"os"
 	"strconv"
+	"time"
 
 	api "view"
-
-	"gopkg.in/urfave/cli.v2"
 )
 
 func main() {
@@ -19,7 +19,7 @@ func main() {
 		Commands: []*cli.Command{
 			{
 				Name:  "login",
-				Usage: "login by ak and sk",
+				Usage: "设置后续查询时需要的 ak sk",
 				Action: func(c *cli.Context) error {
 					api.Login(c.Args().Get(0), c.Args().Get(1))
 					return nil
@@ -43,6 +43,20 @@ func main() {
 					return nil
 				},
 			},
+
+			{
+				Name:  "range",
+				Usage: "设置默认查询时间范围，单位 分钟，默认 5 分钟",
+				Action: func(c *cli.Context) error {
+					i, err := strconv.Atoi(c.Args().Get(0))
+					if err == nil && i > 0 {
+						api.SetTimeRange(i)
+					} else {
+						fmt.Println(" range must be an integer and greater than 0 ")
+					}
+					return nil
+				},
+			},
 			{
 				Name:  "repo",
 				Usage: "set current repo",
@@ -52,25 +66,56 @@ func main() {
 				},
 			},
 			{
-				Name:    "show",
-				Aliases: []string{"s"},
-				Usage:   "show current repo's infomation",
+				Name:  "show",
+				Usage: "show current repo's infomation",
 				Action: func(c *cli.Context) error {
 					api.ShowRepo(c.Args().Get(0))
 					return nil
 				},
 			},
 			{
-				Name:    "range",
-				Aliases: []string{"r"},
-				Usage:   "set query time's range",
+				Name:    "sample",
+				Aliases: []string{"s"},
+				Usage:   "显示两条日志作为样例",
 				Action: func(c *cli.Context) error {
-					i, err := strconv.Atoi(c.Args().Get(0))
-					if err == nil && i > 0 {
-						api.SetTimeRange(i)
-					} else {
-						fmt.Println(" range must be an integer and greater than 0 ")
+					arg := &api.CtlArg{
+						Head:  2,
+						Field: "*",
+						Split: "\t",
+						Debug: true,
 					}
+					query := ""
+					api.Query(&query, arg)
+					return nil
+				},
+			},
+			{
+				Name:      "reqid",
+				Usage:     "通过 reqid 查询日志。若未提供 [field:]，查看是否有 reqid、respheader 字段",
+				ArgsUsage: " [<field>:]<reqid> ",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "field",
+						Aliases: []string{"f"},
+						Value:   "*",
+						Usage:   "显示哪些字段，默认 * ，即全部。以逗号 , 分割，忽略空格。如 \"*, F1\"",
+					},
+					&cli.StringFlag{
+						Name:  "split",
+						Value: "\t",
+						Usage: "显示字段分隔符",
+					},
+					&cli.BoolFlag{
+						Name: "debug",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					arg := &api.CtlArg{
+						Field: c.String("field"),
+						Split: c.String("split"),
+						Debug: c.Bool("debug"),
+					}
+					api.QueryReqid(arg, c.Args().Get(0))
 					return nil
 				},
 			},
@@ -88,12 +133,30 @@ func main() {
 					&cli.StringFlag{
 						Name:    "start",
 						Aliases: []string{"s"},
-						Usage:   "查询日志的开始时间，如: 2017-04-06T17:40:30+0800",
+						Usage:   "查询日志的开始时间，格式要求 logdb 能够正确识别，如: 2017-04-06T17:40:30+0800",
 					},
 					&cli.StringFlag{
 						Name:    "end",
 						Aliases: []string{"e"},
-						Usage:   "查询日志的终止时间，如: 2017-04-06T16:40:30+08",
+						Usage:   "查询日志的终止时间，格式要求 logdb 能够正确识别，如: 2017-04-06T16:40:30+0800",
+					},
+					&cli.Float64Flag{
+						Name:        "day",
+						Aliases:     []string{"d"},
+						Usage:       "从当前时间往前推指定天，如 2.5",
+						DefaultText: "无",
+					},
+					&cli.Float64Flag{
+						Name:        "hour",
+						Aliases:     []string{"H"},
+						Usage:       "从当前时间往前推指定小时，如 2.5",
+						DefaultText: "无",
+					},
+					&cli.Float64Flag{
+						Name:        "minute",
+						Aliases:     []string{"m"},
+						Usage:       "从当前时间往前推指定分钟，如 30",
+						DefaultText: "无",
 					},
 					&cli.StringFlag{
 						Name:    "field",
@@ -104,12 +167,70 @@ func main() {
 					&cli.StringFlag{
 						Name:  "split",
 						Value: "\t",
-						Usage: "显示字段分隔符，默认 \t",
+						Usage: "显示字段分隔符",
 					},
 					&cli.IntFlag{
-						Name:    "head",
-						Aliases: []string{"l"},
-						Usage:   "显示前多少行",
+						Name:        "head",
+						Aliases:     []string{"l"},
+						Usage:       "显示前多少行",
+						DefaultText: "无",
+					},
+					&cli.BoolFlag{
+						Name:  "debug",
+						Value: false,
+						Usage: "显示参数信息",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					start := c.String("start")
+					end := c.String("end")
+					if (len(start) == 0) && (len(end) == 0) {
+						day := c.Float64("day")
+						hour := c.Float64("hour")
+						minute := c.Float64("minute")
+
+						m := day*24*60 + hour*60 + minute
+						// 浮点数，不能通过 m != 0 判断
+						if m > 0.05 {
+							start = time.Now().Add(-time.Duration(m) * time.Minute).Format("2006-01-02T15:04:05+0800")
+							end = time.Now().Format("2006-01-02T15:04:05+0800")
+						}
+					}
+					arg := &api.CtlArg{
+						Field: c.String("field"),
+						Sort:  c.String("order"),
+						Start: start,
+						End:   end,
+						Split: c.String("split"),
+						Head:  c.Int("head"),
+						Debug: c.Bool("debug"),
+					}
+					query := c.Args().Get(0)
+					api.Query(&query, arg)
+					return nil
+				},
+			},
+			{
+				Name:      "histogram",
+				Aliases:   []string{"g"},
+				Usage:     "在时间范围内查询 logdb 内的日志",
+				Hidden:    true,
+				ArgsUsage: " <query> ",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "start",
+						Aliases: []string{"s"},
+						Usage:   "查询日志的开始时间，如: 2017-04-06T17:40:30+0800",
+					},
+					&cli.StringFlag{
+						Name:    "end",
+						Aliases: []string{"e"},
+						Usage:   "查询日志的终止时间，如: 2017-04-06T16:40:30+0800",
+					},
+					&cli.StringFlag{
+						Name:    "field",
+						Aliases: []string{"f"},
+						Usage:   "以哪个字段排序，要求字段的数据类型为 date",
 					},
 					&cli.BoolFlag{
 						Name:  "debug",
@@ -119,16 +240,13 @@ func main() {
 				},
 				Action: func(c *cli.Context) error {
 					arg := &api.CtlArg{
-						Fields: c.String("field"),
-						Sort:   c.String("order"),
-						Start:  c.String("start"),
-						End:    c.String("end"),
-						Split:  c.String("split"),
-						Head:   c.Int("head"),
-						Debug:  c.Bool("debug"),
+						Field: c.String("field"),
+						Start: c.String("start"),
+						End:   c.String("end"),
+						Debug: c.Bool("debug"),
 					}
 					query := c.Args().Get(0)
-					api.Query(&query, arg)
+					api.QueryHistogram(&query, arg)
 					return nil
 				},
 			},

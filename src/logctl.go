@@ -15,7 +15,7 @@ func main() {
 		Name:      "logctl",
 		Usage:     "query logs from logdb",
 		UsageText: "logctl command [command options] [arguments...]",
-		Version:   "0.0.1",
+		Version:   "0.0.2",
 		Commands: []*cli.Command{
 			{
 				Name:  "login",

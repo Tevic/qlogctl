@@ -66,7 +66,7 @@ func Query(query *string, arg *CtlArg) {
 	if len(dateField) != 0 {
 		buildQuery(query, arg, info, &dateField)
 	}
-	doQuery(query, arg, info, &dateField, 0)
+	doQuery(query, arg, info, &sort, 0)
 }
 
 func doQuery(query *string, arg *CtlArg, info *logCtlInfo, sort *string, from int) {
@@ -307,7 +307,7 @@ func QueryReqid(arg *CtlArg, reqidQuery string) {
 		fmt.Printf("reqid: %s , time: %s 太过久远，要求在 \"%s\" 之内。\n", reqid, t.Format("2006-01-02T15:04:05+0800"), _info.Repo.Retention)
 		return
 	}
-	// 构建查询语句，查询
+	// 构建查询语句，指定查询字段
 	if len(reqidField) == 0 {
 		reqidField = getReqidField(_info, "reqid")
 	}
@@ -315,7 +315,7 @@ func QueryReqid(arg *CtlArg, reqidQuery string) {
 		reqidField = getReqidField(_info, "respheader")
 	}
 	if len(reqidField) == 0 {
-		fmt.Printf("没有找到合适的字段用于查询 reqid，请使用  <reqidField>:<reqid> \n")
+		fmt.Printf("没有找到合适的字段用于查询 reqid，请使用  <reqidField>:<reqid> 指定字段 \n")
 		return
 	}
 	query := reqidField + ":" + reqid
@@ -454,7 +454,14 @@ func showRepo(info *logCtlInfo) {
 	// fmt.Printf("%11s: %s\n", "CreateTime", repo.CreateTime)
 	// fmt.Printf("%11s: %s\n", "UpdateTime", repo.UpdateTime)
 	fmt.Printf("Field: (%d)\n", len(repo.Schema))
-	dateField := getDateField(info)
+	// dateField := getDateField(info)
+	var dateField string
+	for _, e := range info.Repo.Schema {
+		if e.ValueType == "date" && len(dateField) == 0 {
+			dateField = e.Key
+		}
+		fmt.Println(e)
+	}
 	fmt.Printf("时间字段为： %s ，默认排序为： %s\n", warpRed(dateField), warpRed(dateField+":desc"))
 }
 

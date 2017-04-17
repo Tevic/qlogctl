@@ -78,14 +78,7 @@ func main() {
 				Aliases: []string{"s"},
 				Usage:   "显示两条日志作为样例",
 				Action: func(c *cli.Context) error {
-					arg := &api.CtlArg{
-						Head:  2,
-						Field: "*",
-						Split: "\t",
-						Debug: true,
-					}
-					query := ""
-					api.Query(&query, arg)
+					api.QuerySample()
 					return nil
 				},
 			},

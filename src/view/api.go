@@ -15,8 +15,8 @@ import (
 	"time"
 	"unicode"
 
-	base "qiniu.com/pandora/base"
-	logdb "qiniu.com/pandora/logdb"
+	"qiniu.com/pandora/base"
+	"qiniu.com/pandora/logdb"
 )
 
 // CtlArg args
@@ -33,11 +33,12 @@ type CtlArg struct {
 }
 
 type logCtlInfo struct {
-	Range    int                  `json:"timeRange"`
-	RepoName string               `json:"repoName"`
-	Ak       string               `json:"ak"`
-	Sk       string               `json:"sk"`
-	Repo     *logdb.GetRepoOutput `json:"repo"`
+	Range    int                     `json:"timeRange"`
+	RepoName string                  `json:"repoName"`
+	Ak       string                  `json:"ak"`
+	Sk       string                  `json:"sk"`
+	Repo     *logdb.GetRepoOutput    `json:"repo"`
+	Log      *map[string]interface{} `json:"log"`
 }
 
 var _info *logCtlInfo
@@ -49,22 +50,18 @@ const _tempFile = ".qn_logdb_ctl_profile"
 func Query(query *string, arg *CtlArg) {
 	buildLogCtlInfo()
 
-	// if info.RepoName != arg.RepoName {
-	//
-	// }
-
 	if len(_info.RepoName) == 0 {
 		fmt.Println(" == set repo first. ==")
 		return
 	}
 	info := _info
-	dateField := getDateField(info)
+	dateField := getDateField(info.Repo)
 	sort := arg.Sort
 	if len(sort) == 0 && len(dateField) > 0 {
 		sort = dateField + ":desc"
 	}
 	if len(dateField) != 0 {
-		buildQuery(query, arg, info, &dateField)
+		buildQuery(query, arg, info.Range, &dateField)
 	}
 	doQuery(query, arg, info, &sort, 0)
 }
@@ -124,8 +121,8 @@ func doQuery(query *string, arg *CtlArg, info *logCtlInfo, sort *string, from in
 	}
 }
 
-func getDateField(info *logCtlInfo) (dateField string) {
-	for _, e := range info.Repo.Schema {
+func getDateField(repo *logdb.GetRepoOutput) (dateField string) {
+	for _, e := range repo.Schema {
 		if e.ValueType == "date" {
 			dateField = e.Key
 			return
@@ -134,7 +131,7 @@ func getDateField(info *logCtlInfo) (dateField string) {
 	return ""
 }
 
-func buildQuery(query *string, arg *CtlArg, info *logCtlInfo, dateField *string) {
+func buildQuery(query *string, arg *CtlArg, defaultRange int, dateField *string) {
 	iSLen := len(arg.Start)
 	iELen := len(arg.End)
 	end := arg.End
@@ -148,10 +145,10 @@ func buildQuery(query *string, arg *CtlArg, info *logCtlInfo, dateField *string)
 		start = "*"
 		// 未指定时间
 	} else if iSLen < 8 && iELen < 8 {
-		if info.Range < 1 {
-			info.Range = 5
+		if defaultRange < 1 {
+			defaultRange = 5
 		}
-		start = time.Now().Add(-time.Duration(info.Range) * time.Minute).Format("2006-01-02T15:04:05+0800")
+		start = time.Now().Add(-time.Duration(defaultRange) * time.Minute).Format("2006-01-02T15:04:05+0800")
 	}
 	if len(*query) != 0 {
 		*query += " AND "
@@ -161,34 +158,42 @@ func buildQuery(query *string, arg *CtlArg, info *logCtlInfo, dateField *string)
 
 func showLogs(logs *logdb.QueryLogOutput, arg *CtlArg, info *logCtlInfo, from int) {
 	if arg.fields == nil || len(arg.fields) == 0 {
-		arg.fields = getShowFields(arg, info)
+		arg.fields = getShowFields(arg.Field, info)
 	}
 
 	for i, v := range logs.Data {
-		fmt.Printf("%d\t%s\n", i+from, getLogStr(&v, &arg.fields, &arg.Split))
+		fmt.Printf("%d\t%s\n", i+from, getLogStr(&v, &arg.fields, arg.Split, false))
 	}
 }
 
-func getLogStr(log *map[string]interface{}, fields *[]string, split *string) string {
+func getLogStr(log *map[string]interface{}, fields *[]string, split string, verbose bool) string {
 	values := []string{}
 	for _, filed := range *fields {
 		v := (*log)[filed]
 		// "valtype":"long"  被转换为 float64 ,显示不友好
 		switch v.(type) {
 		case float64, float32:
-			values = append(values, fmt.Sprintf("%.0f", v))
+			if verbose {
+				values = append(values, fmt.Sprintf(warpRed("%11s:")+"\t%.0f", filed, v))
+			} else {
+				values = append(values, fmt.Sprintf("%.0f", v))
+			}
 			break
 		default:
-			values = append(values, fmt.Sprint(v))
+			if verbose {
+				values = append(values, fmt.Sprintf(warpRed("%11s:")+"\t%v", filed, v))
+			} else {
+				values = append(values, fmt.Sprint(v))
+			}
 		}
 
 	}
-	return strings.Join(values, *split)
+	return strings.Join(values, split)
 }
 
-func getShowFields(arg *CtlArg, info *logCtlInfo) []string {
+func getShowFields(fieldsStr string, info *logCtlInfo) []string {
 	fields := []string{}
-	for _, v := range strings.Split(arg.Field, ",") {
+	for _, v := range strings.Split(fieldsStr, ",") {
 		v = strings.TrimSpace(v)
 		if "*" == v {
 			for _, e := range info.Repo.Schema {
@@ -211,7 +216,7 @@ func QueryHistogram(query *string, arg *CtlArg) {
 	info := _info
 	dateField := arg.Field
 	if len(dateField) == 0 {
-		dateField = getDateField(info)
+		dateField = getDateField(info.Repo)
 	}
 
 	start, err := getTime(arg.Start)
@@ -319,6 +324,12 @@ func QueryReqid(arg *CtlArg, reqidQuery string) {
 		return
 	}
 	query := reqidField + ":" + reqid
+	dateField := getDateField(_info.Repo)
+	if len(dateField) != 0 {
+		start := t.Add(-2 * time.Minute).Format("2006-01-02T15:04:05+0800")
+		end := t.Add(2 * time.Minute).Format("2006-01-02T15:04:05+0800")
+		query += " AND " + dateField + ": [" + start + " TO " + end + "]"
+	}
 	doQuery(&query, arg, _info, nil, 0)
 }
 
@@ -361,12 +372,50 @@ func SetRepo(repoName string) {
 		if len(info.RepoName) != 0 {
 			_info.RepoName = repoName
 			_info.Repo = info.Repo
-			storeInfo(_info)
+			go storeInfo(_info)
 		} else {
 			fmt.Printf("Set repo: %s failed, Nothing changed.\n", repoName)
+			return
 		}
 	}
 	showRepo(_info)
+
+	if len(repoName) != 0 {
+		sample, err := doQuerySample(repoName, _info.Repo)
+		if err != nil {
+			log.Println(err)
+			_info.Log = nil
+		} else {
+			_info.Log = sample
+		}
+	}
+
+	// 显示样例
+	if _info.Log != nil {
+		fmt.Println("Sample: ")
+		fields := getShowFields("*", _info)
+		fmt.Printf("%s\n", getLogStr(_info.Log, &fields, "\n", true))
+	}
+	storeInfo(_info)
+}
+
+// QuerySample sample
+func QuerySample() {
+	buildLogCtlInfo()
+	if _info.Log == nil {
+		sample, err := doQuerySample(_info.RepoName, _info.Repo)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		_info.Log = sample
+		storeInfo(_info)
+	}
+	// 显示样例
+	if _info.Log != nil {
+		fields := getShowFields("*", _info)
+		fmt.Printf("%s\n", getLogStr(_info.Log, &fields, "\n", true))
+	}
 }
 
 // SetTimeRange set range
@@ -435,34 +484,57 @@ func getInfoByName(repoName string) (info *logCtlInfo) {
 		log.Println(err)
 		return
 	}
+
 	repo, err := _client.GetRepo(&logdb.GetRepoInput{RepoName: repoName})
 	if err != nil {
 		log.Println(err)
 		return
 	}
+
 	return &logCtlInfo{
 		RepoName: repoName,
 		Repo:     repo,
 	}
 }
 
+func doQuerySample(repoName string, repo *logdb.GetRepoOutput) (log *map[string]interface{}, err error) {
+	dateField := getDateField(repo)
+	query := ""
+	buildQuery(&query, &CtlArg{}, 2, &dateField)
+	queryInput := &logdb.QueryLogInput{
+		RepoName: repoName,
+		Query:    query,
+		From:     0,
+		Size:     1,
+	}
+	buildClient()
+	logs, err := _client.QueryLog(queryInput)
+	if err != nil {
+		return nil, err
+	}
+	log = &logs.Data[0]
+	return
+}
+
 func showRepo(info *logCtlInfo) {
 	repo := info.Repo
+	// 显示 Repo 信息
 	fmt.Printf("%11s: %s\n", "RepoName", info.RepoName)
 	fmt.Printf("%11s: %s\n", "Region", repo.Region)
 	fmt.Printf("%11s: %s\n", "Retention", repo.Retention)
-	// fmt.Printf("%11s: %s\n", "CreateTime", repo.CreateTime)
-	// fmt.Printf("%11s: %s\n", "UpdateTime", repo.UpdateTime)
+	// 显示字段信息
 	fmt.Printf("Field: (%d)\n", len(repo.Schema))
-	// dateField := getDateField(info)
 	var dateField string
 	for _, e := range info.Repo.Schema {
 		if e.ValueType == "date" && len(dateField) == 0 {
 			dateField = e.Key
+			fmt.Printf(warpRed("%v\n"), e)
+		} else {
+			fmt.Println(e)
 		}
-		fmt.Println(e)
 	}
-	fmt.Printf("时间字段为： %s ，默认排序为： %s\n", warpRed(dateField), warpRed(dateField+":desc"))
+	// 显示时间字段信息
+	fmt.Printf("%s，时间字段为： %s ，默认排序为： %s\n", warpRed(info.RepoName), warpRed(dateField), warpRed(dateField+":desc"))
 }
 
 func warpRed(s string) string {

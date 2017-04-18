@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"gopkg.in/urfave/cli.v2"
 	"os"
@@ -9,6 +10,17 @@ import (
 
 	api "view"
 )
+
+func normalizeDate(str string) (string, error) {
+	dfs := []string{"20060102T15:04", "2006-01-02T15:04:05-0700", "2006-01-02T15:04:05-07"}
+	for _, df := range dfs {
+		t, err := time.Parse(df, str)
+		if err == nil {
+			return t.Format("2006-01-02T15:04:05+0800"), err
+		}
+	}
+	return "", errors.New(fmt.Sprintf(" %s : %s ", "时间格式不正确", str))
+}
 
 func main() {
 	app := &cli.App{
@@ -126,12 +138,12 @@ func main() {
 					&cli.StringFlag{
 						Name:    "start",
 						Aliases: []string{"s"},
-						Usage:   "查询日志的开始时间，格式要求 logdb 能够正确识别，如: 2017-04-06T17:40:30+0800",
+						Usage:   "查询日志的开始时间，格式要求 logdb 能够正确识别，如: 20060102T15:04，2017-04-06T17:40:30+0800",
 					},
 					&cli.StringFlag{
 						Name:    "end",
 						Aliases: []string{"e"},
-						Usage:   "查询日志的终止时间，格式要求 logdb 能够正确识别，如: 2017-04-06T16:40:30+0800",
+						Usage:   "查询日志的终止时间，格式要求 logdb 能够正确识别，如: 20060102T15:04，2017-04-06T16:40:30+0800",
 					},
 					&cli.Float64Flag{
 						Name:        "day",
@@ -174,9 +186,23 @@ func main() {
 						Usage: "显示参数信息",
 					},
 				},
-				Action: func(c *cli.Context) error {
+				Action: func(c *cli.Context) (err error) {
 					start := c.String("start")
 					end := c.String("end")
+					if len(start) != 0 {
+						start, err = normalizeDate(start)
+						if err != nil {
+							fmt.Println(err)
+							return nil
+						}
+					}
+					if len(end) != 0 {
+						end, err = normalizeDate(start)
+						if err != nil {
+							fmt.Println(err)
+							return nil
+						}
+					}
 					if (len(start) == 0) && (len(end) == 0) {
 						day := c.Float64("day")
 						hour := c.Float64("hour")

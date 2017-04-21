@@ -12,11 +12,11 @@ import (
 )
 
 func normalizeDate(str string) (string, error) {
-	dfs := []string{"20060102T15:04", "2006-01-02T15:04:05-0700", "2006-01-02T15:04:05-07"}
+	dfs := []string{"20060102T15:04", "2006-01-02T15:04:05-0700"}
 	for _, df := range dfs {
 		t, err := time.Parse(df, str)
 		if err == nil {
-			return t.Format("2006-01-02T15:04:05+0800"), err
+			return t.Format("2006-01-02T15:04:05-0700"), err
 		}
 	}
 	return "", errors.New(fmt.Sprintf(" %s : %s ", "时间格式不正确", str))
@@ -197,7 +197,7 @@ func main() {
 						}
 					}
 					if len(end) != 0 {
-						end, err = normalizeDate(start)
+						end, err = normalizeDate(end)
 						if err != nil {
 							fmt.Println(err)
 							return nil
@@ -211,8 +211,8 @@ func main() {
 						m := day*24*60 + hour*60 + minute
 						// 浮点数，不能通过 m != 0 判断
 						if m > 0.05 {
-							start = time.Now().Add(-time.Duration(m) * time.Minute).Format("2006-01-02T15:04:05+0800")
-							end = time.Now().Format("2006-01-02T15:04:05+0800")
+							start = time.Now().Add(-time.Duration(m) * time.Minute).Format("2006-01-02T15:04:05-0700")
+							end = time.Now().Format("2006-01-02T15:04:05-0700")
 						}
 					}
 					arg := &api.CtlArg{

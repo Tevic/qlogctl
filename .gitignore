@@ -8,6 +8,10 @@ _obj
 _test
 bin/
 pkg/
+.idea/
+
+.DS_Store
+logctl
 
 *.exe
 *.test

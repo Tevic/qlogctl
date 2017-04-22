@@ -12,7 +12,7 @@ import (
 )
 
 func normalizeDate(str string) (string, error) {
-	dfs := []string{"20060102T15:04", "2006-01-02T15:04:05-0700"}
+	dfs := []string{"20060102T15:04", "2006-01-02T15:04:05+0800"}
 	for _, df := range dfs {
 		t, err := time.Parse(df, str)
 		if err == nil {

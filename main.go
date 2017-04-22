@@ -3,16 +3,24 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/qiniuts/logctl/api"
 	"gopkg.in/urfave/cli.v2"
 	"os"
 	"strconv"
 	"time"
-
-	api "view"
 )
 
 func normalizeDate(str string) (string, error) {
-	dfs := []string{"20060102T15:04", "2006-01-02T15:04:05+0800"}
+	// 没有指定时区，格式化为 0800
+	dfs := []string{"20060102T15:04"}
+	for _, df := range dfs {
+		t, err := time.Parse(df, str)
+		if err == nil {
+			return t.Format("2006-01-02T15:04:05+0800"), err
+		}
+	}
+	// 指定了时区
+	dfs = []string{"2006-01-02T15:04:05+0800"}
 	for _, df := range dfs {
 		t, err := time.Parse(df, str)
 		if err == nil {

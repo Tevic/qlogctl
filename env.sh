@@ -1,1 +1,1 @@
-export GOPATH=$GOPATH:$QBOXROOT/pandora-sdk:$QBOXROOT/qbana
+export GOPATH=$GOPATH:$QBOXROOT/pandora-sdk/

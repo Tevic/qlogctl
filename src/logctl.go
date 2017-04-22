@@ -40,7 +40,7 @@ func main() {
 			{
 				Name:      "list",
 				Aliases:   []string{"l"},
-				Usage:     "list the logdb's repos",
+				Usage:     "列取当前账号下所有的仓库",
 				ArgsUsage: " ",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
@@ -55,33 +55,11 @@ func main() {
 					return nil
 				},
 			},
-
-			{
-				Name:  "range",
-				Usage: "设置默认查询时间范围，单位 分钟，默认 5 分钟",
-				Action: func(c *cli.Context) error {
-					i, err := strconv.Atoi(c.Args().Get(0))
-					if err == nil && i > 0 {
-						api.SetTimeRange(i)
-					} else {
-						fmt.Println(" range must be an integer and greater than 0 ")
-					}
-					return nil
-				},
-			},
 			{
 				Name:  "repo",
-				Usage: "set current repo",
+				Usage: "设置查询日志所在的仓库(需要先设置)",
 				Action: func(c *cli.Context) error {
 					api.SetRepo(c.Args().Get(0))
-					return nil
-				},
-			},
-			{
-				Name:  "show",
-				Usage: "show current repo's infomation",
-				Action: func(c *cli.Context) error {
-					api.ShowRepo(c.Args().Get(0))
 					return nil
 				},
 			},
@@ -266,6 +244,27 @@ func main() {
 					}
 					query := c.Args().Get(0)
 					api.QueryHistogram(&query, arg)
+					return nil
+				},
+			},
+			{
+				Name:  "show",
+				Usage: "显示当前设置的仓库信息",
+				Action: func(c *cli.Context) error {
+					api.ShowRepo(c.Args().Get(0))
+					return nil
+				},
+			},
+			{
+				Name:  "range",
+				Usage: "设置默认查询时间范围，单位 分钟，默认 5 分钟",
+				Action: func(c *cli.Context) error {
+					i, err := strconv.Atoi(c.Args().Get(0))
+					if err == nil && i > 0 {
+						api.SetTimeRange(i)
+					} else {
+						fmt.Println(" range must be an integer and greater than 0 ")
+					}
 					return nil
 				},
 			},

@@ -34,7 +34,7 @@ func main() {
 	app := &cli.App{
 		Name:      "logctl",
 		Usage:     "query logs from logdb",
-		UsageText: "logctl command [command options] [arguments...]",
+		UsageText: " command [command options] [arguments...]",
 		Version:   "0.0.2",
 		Commands: []*cli.Command{
 			{

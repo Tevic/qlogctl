@@ -20,7 +20,7 @@ func normalizeDate(str string) (string, error) {
 		}
 	}
 	// 指定了时区
-	dfs = []string{"2006-01-02T15:04:05+0800"}
+	dfs = []string{"2006-01-02T15:04:05-0700"}
 	for _, df := range dfs {
 		t, err := time.Parse(df, str)
 		if err == nil {
@@ -35,13 +35,29 @@ func main() {
 		Name:      "logctl",
 		Usage:     "query logs from logdb",
 		UsageText: " command [command options] [arguments...]",
-		Version:   "0.0.2",
+		Version:   "0.0.3",
 		Commands: []*cli.Command{
 			{
 				Name:  "login",
 				Usage: "设置后续查询时需要的 ak sk",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "alias",
+						Aliases: []string{"a"},
+						Value:   "default",
+						Usage:   "登录用户别名`NAME`",
+					},
+				},
 				Action: func(c *cli.Context) error {
-					api.Login(c.Args().Get(0), c.Args().Get(1))
+					api.Login(c.Args().Get(0), c.Args().Get(1), c.String("alias"))
+					return nil
+				},
+			},
+			{
+				Name:  "userlist",
+				Usage: "已设置账号列表",
+				Action: func(c *cli.Context) error {
+					api.UserList()
 					return nil
 				},
 			},
@@ -65,9 +81,16 @@ func main() {
 			},
 			{
 				Name:  "repo",
-				Usage: "设置查询日志所在的仓库(需要先设置)",
+				Usage: "设置查询日志所在的仓库(请在查询前设置)",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:    "refresh",
+						Aliases: []string{"r"},
+						Value:   false,
+					},
+				},
 				Action: func(c *cli.Context) error {
-					api.SetRepo(c.Args().Get(0))
+					api.SetRepo(c.Args().Get(0), c.Bool("refresh"))
 					return nil
 				},
 			},
@@ -77,6 +100,14 @@ func main() {
 				Usage:   "显示两条日志作为样例",
 				Action: func(c *cli.Context) error {
 					api.QuerySample()
+					return nil
+				},
+			},
+			{
+				Name:  "clear",
+				Usage: "清理缓存信息",
+				Action: func(c *cli.Context) error {
+					api.Clear()
 					return nil
 				},
 			},
@@ -252,14 +283,6 @@ func main() {
 					}
 					query := c.Args().Get(0)
 					api.QueryHistogram(&query, arg)
-					return nil
-				},
-			},
-			{
-				Name:  "show",
-				Usage: "显示当前设置的仓库信息",
-				Action: func(c *cli.Context) error {
-					api.ShowRepo(c.Args().Get(0))
 					return nil
 				},
 			},

@@ -51,10 +51,14 @@ const _tempFile = ".qn_logdb_ctl_profile"
 
 // Query by query and args
 func Query(query *string, arg *CtlArg) {
-	buildLogCtlInfo()
+	err := buildLogCtlInfo()
+	if err != nil {
+		log.Println(err)
+		return
+	}
 
 	if len(_info.RepoName) == 0 {
-		fmt.Println(" == set repo first. ==")
+		fmt.Println(" 请先设置要查询的 REPO ")
 		return
 	}
 	info := _info
@@ -316,7 +320,11 @@ func QueryReqid(arg *CtlArg, reqidQuery string) {
 
 	// 对应 repo 有效时间内的 reqid ，本地时间判断
 	t := time.Unix(unixNano/1e9, 0)
-	buildLogCtlInfo()
+	err = buildLogCtlInfo()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	day := 0
 	for _, c := range _info.Repo.Retention {
@@ -379,18 +387,34 @@ func parseReqid(reqid string) (unixNano int64, err error) {
 
 // SetRepo set current repo
 func SetRepo(repoName string, refresh bool) {
-	buildLogCtlInfo()
+	err := buildLogCtlInfo()
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	if !refresh {
+		if len(repoName) == 0 && _info.Repo == nil {
+			fmt.Println("Repo 为空，请指定 reponame")
+			return
+		}
 		if len(repoName) == 0 || repoName == _info.RepoName {
 			showRepo(_info)
 			return
 		}
-		info := getCtlInfo(_logCtlCtx, _info.User, repoName)
+		info, err := getCtlInfo(_logCtlCtx, _info.User, repoName)
+		if err != nil {
+			log.Println(err)
+			return
+		}
 		if info != nil && info.Repo != nil {
 			showRepo(info)
 			storeInfo(info)
 			return
 		}
+	}
+	if len(repoName) == 0 {
+		fmt.Println("RepoName 为空，查询失败")
+		return
 	}
 	repo, sample, err := getNewInfoByName(repoName)
 	if err != nil {
@@ -406,7 +430,11 @@ func SetRepo(repoName string, refresh bool) {
 
 // QuerySample sample
 func QuerySample() {
-	buildLogCtlInfo()
+	err := buildLogCtlInfo()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	if _info.Log == nil {
 		sample, err := doQuerySample(_info.RepoName, _info.Repo)
 		if err != nil {
@@ -430,15 +458,23 @@ func Clear() {
 
 // SetTimeRange set range
 func SetTimeRange(r int) {
-	buildLogCtlInfo()
+	err := buildLogCtlInfo()
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	_info.Range = r
 	storeInfo(_info)
 }
 
 // ListRepos list repos
-func ListRepos(verbose bool) {
-	buildLogCtlInfo()
-	err := buildClient()
+func ListRepos(verbose bool) (err error) {
+	err = buildLogCtlInfo()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	err = buildClient()
 	if err != nil {
 		log.Println(err)
 		return
@@ -477,6 +513,7 @@ func ListRepos(verbose bool) {
 			}
 		}
 	}
+	return
 }
 
 func getNewInfoByName(repoName string) (repo *logdb.GetRepoOutput, sample *map[string]interface{}, err error) {
@@ -545,54 +582,87 @@ func warpRed(s string) string {
 	return fmt.Sprintf("\033[0;31m%s\033[0m", s)
 }
 
-// Login by ak and sk
-func Login(ak string, sk string, alias string) {
-	if len(sk) != 0 && len(alias) != 0 {
-		info := buildUserContect(ak, sk, alias)
-		if info == _info && info.Repo != nil {
-			showRepo(_info)
-			return
-		}
-		if info != _info {
-			err := setCurrentUser(info)
-			if err != nil {
-				fmt.Println("设置 账号信息失败，请重试 ...")
-				return
-			}
-		}
-		ListRepos(false)
-		fmt.Println(warpRed("请设置 REPO ..."))
+// Account the ak,sk and give them a name
+func Account(ak string, sk string, name string) {
+	info := buildUserContect(ak, sk, name)
+	if info == _info && info.Repo != nil {
+		showRepo(info)
 		return
 	}
-	user := &alias
-	if len(ak) != 0 {
-		user = &ak
+	if info != _info {
+		err := setCurrentUser(info)
+		if err != nil {
+			fmt.Println("设置 账号信息失败，请重试 ...")
+			return
+		}
+		_info = nil
 	}
-	buildLogCtlInfo()
-	_info = getCtlInfo(_logCtlCtx, *user, "")
-	storeInfo(_info)
-	if _info.Repo != nil {
-		showRepo(_info)
+	err := ListRepos(false)
+	if err == nil {
+		fmt.Println(warpRed("请设置 REPO ..."))
+	}
+}
+
+// Switch user account
+func Switch(user string) {
+	err := buildLogCtlInfo()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	info, err := getCtlInfo(_logCtlCtx, user, "")
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	storeInfo(info)
+	if info.Repo != nil {
+		showRepo(info)
 	} else {
 		ListRepos(false)
 		fmt.Println(warpRed("请设置 REPO ..."))
 	}
 }
 
+// Deluser user account
+func Deluser(user string) {
+	err := buildLogCtlInfo()
+	if err != nil {
+		log.Printf("获取用户信息失败或无此用户: %s", user)
+		return
+	}
+	if _logCtlCtx.Current == user {
+		_logCtlCtx.Current = ""
+	}
+	if (*_logCtlCtx.Data)[user] != nil {
+		(*_logCtlCtx.Data)[user] = nil
+		delete((*_logCtlCtx.Data), user)
+	}
+	storeCtx(_logCtlCtx)
+}
+
 // UserList list user names
 func UserList() {
 	buildLogCtlInfo()
-	keys := make([]string, 0)
+	users := make([]string, 0)
 	if _logCtlCtx == nil || _logCtlCtx.Data == nil {
-		fmt.Println("没有已设置的登录信息")
+		fmt.Println(" 未找到已设置的登录信息")
 		return
 	}
-	for k := range *_logCtlCtx.Data {
-		keys = append(keys, k)
+	for user := range *_logCtlCtx.Data {
+		users = append(users, user)
 	}
-	sort.Strings(keys)
-	for i, k := range keys {
-		fmt.Printf("%v: %v\n", i, k)
+	currentUser := ""
+	if _info != nil {
+		currentUser = _info.User
+	}
+	sort.Strings(users)
+	for i, k := range users {
+		if currentUser == k && len(currentUser) > 0 {
+			fmt.Printf(warpRed("%v: %v %v\n"), i, k, "**")
+		} else {
+			fmt.Printf("%v: %v\n", i, k)
+		}
 	}
 }
 
@@ -645,33 +715,35 @@ type logCtlCtxRepoData struct {
 	Log  *map[string]interface{} `json:"log"`
 }
 
-func buildLogCtlInfo() error {
+func buildLogCtlInfo() (err error) {
 	if _info == nil {
 		bytes, err := ioutil.ReadFile(userHomeDir() + "/" + _tempFile)
 		if err != nil {
-			log.Println("Opps....", err)
-			return err
+			return fmt.Errorf("%v\n 内部错误或还没有设置过账号信息", err)
 		}
 		if _logCtlCtx == nil {
 			_logCtlCtx = &logCtlCtx{}
 		}
 		err = json.Unmarshal(bytes, _logCtlCtx)
 		if err != nil {
-			log.Println("Opps....", err)
-			return err
+			return fmt.Errorf("%v\n 内部错误或还没有设置过账号信息", err)
 		}
-		_info = getCtlInfo(_logCtlCtx, _logCtlCtx.Current, "")
+		_info, err = getCtlInfo(_logCtlCtx, _logCtlCtx.Current, "")
+		return err
 	}
 	return nil
 }
 
-func getCtlInfo(ctx *logCtlCtx, user string, repoName string) *logCtlInfo {
-	if len(user) == 0 || ctx.Data == nil {
-		return nil
+func getCtlInfo(ctx *logCtlCtx, user string, repoName string) (*logCtlInfo, error) {
+	if ctx.Data == nil {
+		return nil, fmt.Errorf("获取用户信息失败或无此用户: %s ，请确认是否设置了正确的账号", user)
 	}
-	info := &logCtlInfo{}
-
 	userData := (*ctx.Data)[user]
+	if userData == nil {
+		return nil, fmt.Errorf("获取用户信息失败或无此用户: %s ，请确认是否设置了正确的账号", user)
+	}
+
+	info := &logCtlInfo{}
 
 	info.User = user
 	info.Ak = userData.AK
@@ -687,11 +759,11 @@ func getCtlInfo(ctx *logCtlCtx, user string, repoName string) *logCtlInfo {
 	}
 	repoData := (*userData.Data)[info.RepoName]
 	if repoData == nil {
-		return info
+		return info, nil
 	}
 	info.Repo = repoData.Repo
 	info.Log = repoData.Log
-	return info
+	return info, nil
 }
 
 func storeInfo(v *logCtlInfo) (err error) {
@@ -729,7 +801,12 @@ func storeInfo(v *logCtlInfo) (err error) {
 	(*ctxDataMap)[v.User] = ctxData
 	_logCtlCtx.Data = ctxDataMap
 
-	bytes, err := json.Marshal(_logCtlCtx)
+	storeCtx(_logCtlCtx)
+	return
+}
+
+func storeCtx(ctx *logCtlCtx) (err error) {
+	bytes, err := json.Marshal(ctx)
 	if err == nil && bytes != nil {
 		err = ioutil.WriteFile(userHomeDir()+"/"+_tempFile, bytes, 0666)
 		if err != nil {

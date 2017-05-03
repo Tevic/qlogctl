@@ -38,23 +38,43 @@ func main() {
 		Version:   "0.0.3",
 		Commands: []*cli.Command{
 			{
-				Name:  "login",
-				Usage: "设置后续查询时需要的 ak sk",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:    "alias",
-						Aliases: []string{"a"},
-						Value:   "default",
-						Usage:   "登录用户别名`NAME`",
-					},
-				},
+				Name:      "account",
+				Usage:     "设置后续查询时需要的 ak sk 以及方便使用的别名",
+				ArgsUsage: "<ak> <sk> <name>",
 				Action: func(c *cli.Context) error {
-					api.Login(c.Args().Get(0), c.Args().Get(1), c.String("alias"))
-					return nil
+					if c.Args().Len() == 3 {
+						api.Account(c.Args().Get(0), c.Args().Get(1), c.Args().Get(2))
+						return nil
+					}
+					return errors.New("参数错误： <ak> <sk> <name> ")
 				},
 			},
 			{
-				Name:  "userlist",
+				Name:      "switch",
+				Usage:     "通过别名，切换不同的账号",
+				ArgsUsage: "<name>",
+				Action: func(c *cli.Context) error {
+					if c.Args().Len() == 1 {
+						api.Switch(c.Args().Get(0))
+						return nil
+					}
+					return errors.New("参数错误： <name> ")
+				},
+			},
+			{
+				Name:      "deluser",
+				Usage:     "通过别名，删除账号",
+				ArgsUsage: "<name>",
+				Action: func(c *cli.Context) error {
+					if c.Args().Len() == 1 {
+						api.Deluser(c.Args().Get(0))
+						return nil
+					}
+					return errors.New("参数错误： <name> ")
+				},
+			},
+			{
+				Name:  "users",
 				Usage: "已设置账号列表",
 				Action: func(c *cli.Context) error {
 					api.UserList()

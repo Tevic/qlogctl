@@ -16,6 +16,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/qiniuts/logctl/crypto"
 	"qiniu.com/pandora/base"
 	"qiniu.com/pandora/logdb"
 )
@@ -552,6 +553,7 @@ func doQuerySample(repoName string, repo *logdb.GetRepoOutput) (log *map[string]
 
 func showRepo(info *logCtlInfo) {
 	repo := info.Repo
+	fmt.Printf("\n%11s: %s\n", "User", info.User)
 	// 显示 Repo 信息
 	fmt.Printf("\n%11s: %s\n", "RepoName", info.RepoName)
 	fmt.Printf("%11s: %s\n", "Region", repo.Region)
@@ -595,7 +597,6 @@ func Account(ak string, sk string, name string) {
 			fmt.Println("设置 账号信息失败，请重试 ...")
 			return
 		}
-		_info = nil
 	}
 	err := ListRepos(false)
 	if err == nil {
@@ -615,7 +616,7 @@ func Switch(user string) {
 		log.Println(err)
 		return
 	}
-	storeInfo(info)
+	setCurrentUser(info)
 	if info.Repo != nil {
 		showRepo(info)
 	} else {
@@ -683,7 +684,9 @@ func setCurrentUser(info *logCtlInfo) (err error) {
 		_logCtlCtx = &logCtlCtx{}
 	}
 	_logCtlCtx.Current = info.User
-	return storeInfo(info)
+	err = storeInfo(info)
+	_info = nil
+	return
 }
 
 func userHomeDir() string {
@@ -746,8 +749,8 @@ func getCtlInfo(ctx *logCtlCtx, user string, repoName string) (*logCtlInfo, erro
 	info := &logCtlInfo{}
 
 	info.User = user
-	info.Ak = userData.AK
-	info.Sk = userData.SK
+	info.Ak, _ = crypto.Decrypt(userData.AK)
+	info.Sk, _ = crypto.Decrypt(userData.SK)
 	info.Range = userData.Range
 	if info.Range < 1 {
 		info.Range = 5
@@ -780,8 +783,8 @@ func storeInfo(v *logCtlInfo) (err error) {
 	if ctxData == nil {
 		ctxData = &logCtlCtxData{}
 	}
-	ctxData.AK = v.Ak
-	ctxData.SK = v.Sk
+	ctxData.AK, _ = crypto.Encrypt(v.Ak)
+	ctxData.SK, _ = crypto.Encrypt(v.Sk)
 	ctxData.Range = v.Range
 	ctxData.Repo = v.RepoName
 

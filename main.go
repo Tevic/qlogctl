@@ -34,8 +34,8 @@ func main() {
 	app := &cli.App{
 		Name:      "logctl",
 		Usage:     "query logs from logdb",
-		UsageText: " command [command options] [arguments...]",
-		Version:   "0.0.3",
+		UsageText: " command [command options] [arguments...] \n 0.0.4 版本开始，对 ak sk 加密保存读取，请 clear 后重新设置账号",
+		Version:   "0.0.4",
 		Commands: []*cli.Command{
 			{
 				Name:      "account",

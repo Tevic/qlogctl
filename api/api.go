@@ -535,7 +535,9 @@ func getNewInfoByName(repoName string) (repo *logdb.GetRepoOutput, sample *map[s
 func doQuerySample(repoName string, repo *logdb.GetRepoOutput) (log *map[string]interface{}, err error) {
 	dateField := getDateField(repo)
 	query := ""
-	buildQuery(&query, &CtlArg{}, 2, &dateField)
+	start := time.Now().Add(-60 * time.Minute).Format("2006-01-02T15:04:05+0800")
+	end := time.Now().Add(-55 * time.Minute).Format("2006-01-02T15:04:05+0800")
+	buildQuery(&query, &CtlArg{Start: start, End: end}, 5, &dateField)
 	queryInput := &logdb.QueryLogInput{
 		RepoName: repoName,
 		Query:    query,
@@ -547,7 +549,9 @@ func doQuerySample(repoName string, repo *logdb.GetRepoOutput) (log *map[string]
 	if err != nil {
 		return nil, err
 	}
-	log = &logs.Data[0]
+	if len(logs.Data) > 0 {
+		log = &logs.Data[0]
+	}
 	return
 }
 

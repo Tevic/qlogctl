@@ -34,7 +34,7 @@ func main() {
 	app := &cli.App{
 		Name:      "logctl",
 		Usage:     "query logs from logdb",
-		UsageText: " command [command options] [arguments...] \n 0.0.4 版本开始，对 ak sk 加密保存读取，请 clear 后重新设置账号",
+		UsageText: " command [command options] [arguments...] ",
 		Version:   "0.0.4",
 		Commands: []*cli.Command{
 			{
@@ -50,6 +50,14 @@ func main() {
 				},
 			},
 			{
+				Name:  "users",
+				Usage: "查看已设置账号列表",
+				Action: func(c *cli.Context) error {
+					api.UserList()
+					return nil
+				},
+			},
+			{
 				Name:      "switch",
 				Usage:     "通过别名，切换不同的账号",
 				ArgsUsage: "<name>",
@@ -59,26 +67,6 @@ func main() {
 						return nil
 					}
 					return errors.New("参数错误： <name> ")
-				},
-			},
-			{
-				Name:      "deluser",
-				Usage:     "通过别名，删除账号",
-				ArgsUsage: "<name>",
-				Action: func(c *cli.Context) error {
-					if c.Args().Len() == 1 {
-						api.Deluser(c.Args().Get(0))
-						return nil
-					}
-					return errors.New("参数错误： <name> ")
-				},
-			},
-			{
-				Name:  "users",
-				Usage: "已设置账号列表",
-				Action: func(c *cli.Context) error {
-					api.UserList()
-					return nil
 				},
 			},
 			{
@@ -111,23 +99,6 @@ func main() {
 				},
 				Action: func(c *cli.Context) error {
 					api.SetRepo(c.Args().Get(0), c.Bool("refresh"))
-					return nil
-				},
-			},
-			{
-				Name:    "sample",
-				Aliases: []string{"s"},
-				Usage:   "显示两条日志作为样例",
-				Action: func(c *cli.Context) error {
-					api.QuerySample()
-					return nil
-				},
-			},
-			{
-				Name:  "clear",
-				Usage: "清理缓存信息",
-				Action: func(c *cli.Context) error {
-					api.Clear()
 					return nil
 				},
 			},
@@ -264,6 +235,35 @@ func main() {
 					query := c.Args().Get(0)
 					api.Query(&query, arg)
 					return nil
+				},
+			},
+			{
+				Name:    "sample",
+				Aliases: []string{"s"},
+				Usage:   "显示两条日志作为样例",
+				Action: func(c *cli.Context) error {
+					api.QuerySample()
+					return nil
+				},
+			},
+			{
+				Name:  "clear",
+				Usage: "清理保存在临时文件中的信息",
+				Action: func(c *cli.Context) error {
+					api.Clear()
+					return nil
+				},
+			},
+			{
+				Name:      "deluser",
+				Usage:     "通过别名，删除账号信息",
+				ArgsUsage: "<name>",
+				Action: func(c *cli.Context) error {
+					if c.Args().Len() == 1 {
+						api.Deluser(c.Args().Get(0))
+						return nil
+					}
+					return errors.New("参数错误： <name> ")
 				},
 			},
 			{

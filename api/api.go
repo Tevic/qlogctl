@@ -16,9 +16,9 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/qiniu/pandora-go-sdk/base"
+	"github.com/qiniu/pandora-go-sdk/logdb"
 	"github.com/qiniuts/logctl/crypto"
-	"qiniu.com/pandora/base"
-	"qiniu.com/pandora/logdb"
 )
 
 // CtlArg args

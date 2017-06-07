@@ -3,11 +3,12 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/qiniuts/logctl/api"
-	"gopkg.in/urfave/cli.v2"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/qiniuts/logctl/api"
+	"gopkg.in/urfave/cli.v2"
 )
 
 func normalizeDate(str string) (string, error) {
@@ -27,7 +28,7 @@ func normalizeDate(str string) (string, error) {
 			return t.Format("2006-01-02T15:04:05-0700"), err
 		}
 	}
-	return "", errors.New(fmt.Sprintf(" %s : %s ", "时间格式不正确", str))
+	return "", fmt.Errorf(" %s : %s ", "时间格式不正确", str)
 }
 
 func main() {
@@ -35,7 +36,7 @@ func main() {
 		Name:      "logctl",
 		Usage:     "query logs from logdb",
 		UsageText: " command [command options] [arguments...] ",
-		Version:   "0.0.4",
+		Version:   "0.0.5",
 		Commands: []*cli.Command{
 			{
 				Name:      "account",

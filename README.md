@@ -7,7 +7,7 @@ logctl工具是针对Pandora日志检索产品提供的命令行工具，可以�
 ```
 go get gopkg.in/urfave/cli.v2
 go get github.com/qiniu/pandora-go-sdk
-go build -o logctl
+go build -o qlogctl
 ```
 
 ## 注意

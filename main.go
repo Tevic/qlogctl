@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/qiniuts/logctl/api"
+	"github.com/qiniuts/qlogctl/api"
 	"gopkg.in/urfave/cli.v2"
 )
 

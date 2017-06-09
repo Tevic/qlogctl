@@ -18,7 +18,7 @@ import (
 
 	"github.com/qiniu/pandora-go-sdk/base"
 	"github.com/qiniu/pandora-go-sdk/logdb"
-	"github.com/qiniuts/logctl/crypto"
+	"github.com/qiniuts/qlogctl/crypto"
 )
 
 // CtlArg args

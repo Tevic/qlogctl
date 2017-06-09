@@ -1,6 +1,6 @@
-# logctl
+# qlogctl
 
-logctl工具是针对Pandora日志检索产品提供的命令行工具，可以快速使用命令行查询日志检索中的数据，也是日志检索的延伸，可以搜索更大数据量。
+qlogctl工具是针对Pandora日志检索产品提供的命令行工具，可以快速使用命令行查询日志检索中的数据，也是日志检索的延伸，可以搜索更大数据量。
 
 ## 源码安装
 
@@ -18,12 +18,12 @@ go build -o qlogctl
 ## 帮助
 
 ```
-logctl help
+qlogctl help
 ```
 
 
 ## 下载
 
- * [darwin 版本](http://devtools.qiniu.com/darwin/log/logctl)
+ * [darwin 版本](http://devtools.qiniu.com/darwin/log/qlogctl)
 
- * [linux 版本](http://devtools.qiniu.com/linux/log/logctl)
+ * [linux 版本](http://devtools.qiniu.com/linux/log/qlogctl)

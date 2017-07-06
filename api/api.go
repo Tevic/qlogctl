@@ -486,6 +486,10 @@ func ListRepos(verbose bool) (err error) {
 		return
 	}
 
+	sort.Slice(repos.Repos, func(i, j int) bool {
+		return repos.Repos[i].RepoName < repos.Repos[j].RepoName
+	})
+
 	iLen := 10
 	for _, v := range repos.Repos {
 		l := len(v.RepoName)

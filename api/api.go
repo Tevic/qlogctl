@@ -69,6 +69,12 @@ func checkCtlArg(arg *CtlArg, info *logCtlInfo) (warn, err error) {
 
 // retention :eg: 7d, 30d
 func checkInRetention(start, end *time.Time, retention string) (warn, err error) {
+
+	//forever storage
+	if strings.TrimSpace(retention) == "-1" {
+		return
+	}
+
 	day := 0
 	for _, c := range retention {
 		if unicode.IsDigit(c) {

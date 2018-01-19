@@ -50,7 +50,7 @@ func checkCtlArg(arg *CtlArg, info *logCtlInfo) (warn, err error) {
 	if arg.Start.IsZero() {
 		arg.Start = arg.End.Add(-time.Minute * time.Duration(currentInfo.Range))
 	}
-	warn, err = checkInRetention(&arg.Start, &arg.End, strings.ToLower(currentInfo.Repo.Retention))
+	warn = checkInRetention(&arg.Start, &arg.End, strings.ToLower(currentInfo.Repo.Retention))
 	if err != nil {
 		return
 	}
@@ -68,7 +68,10 @@ func checkCtlArg(arg *CtlArg, info *logCtlInfo) (warn, err error) {
 }
 
 // retention :eg: 7d, 30d
-func checkInRetention(start, end *time.Time, retention string) (warn, err error) {
+func checkInRetention(start, end *time.Time, retention string) (warn error) {
+	if strings.TrimSpace(retention) == "-1" {
+		return
+	}
 	day := 0
 	for _, c := range retention {
 		if unicode.IsDigit(c) {
@@ -80,12 +83,7 @@ func checkInRetention(start, end *time.Time, retention string) (warn, err error)
 	}
 
 	earliest := time.Now().Add(-time.Hour * 24 * time.Duration(day))
-	if earliest.After(*end) {
-		err = fmt.Errorf("[%v ~ %v]时间范围太过久远，要求在 \"%s\" 之内。", start, end, retention)
-		return
-	}
-
-	if earliest.After(*start) {
+	if earliest.After(*end) || earliest.After(*start) {
 		warn = fmt.Errorf("[%v ~ %v]时间可能超出范围，不一定能获取到有效数据。最好在 \"%s\" 之内。", start, end, retention)
 	}
 	return
@@ -122,7 +120,7 @@ func buildQueryStr(pquery *string, info *logCtlInfo, arg *CtlArg) (sort string) 
 	if len(dateField) != 0 {
 		query := *pquery
 		if len(query) != 0 {
-			query += " AND "
+			query = "(" + query + ") AND "
 		}
 		query += dateField + ":[" + arg.Start.Format(DateLayout) +
 			" TO " + arg.End.Format(DateLayout) + "]"

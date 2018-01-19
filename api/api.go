@@ -68,7 +68,8 @@ func checkCtlArg(arg *CtlArg, info *logCtlInfo) (warn, err error) {
 }
 
 // retention :eg: 7d, 30d
-func checkInRetention(start, end *time.Time, retention string) (warn error) {
+func checkInRetention(start, end *time.Time, retention string) (warn, err error) {
+	//forever storage
 	if strings.TrimSpace(retention) == "-1" {
 		return
 	}

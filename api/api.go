@@ -50,11 +50,10 @@ func checkCtlArg(arg *CtlArg, info *logCtlInfo) (warn, err error) {
 	if arg.Start.IsZero() {
 		arg.Start = arg.End.Add(-time.Minute * time.Duration(currentInfo.Range))
 	}
-	warn = checkInRetention(&arg.Start, &arg.End, strings.ToLower(currentInfo.Repo.Retention))
+	warn, err = checkInRetention(&arg.Start, &arg.End, strings.ToLower(currentInfo.Repo.Retention))
 	if err != nil {
 		return
 	}
-
 	if len(arg.Fields) == 0 {
 		arg.Fields = "*"
 	}
@@ -84,7 +83,12 @@ func checkInRetention(start, end *time.Time, retention string) (warn, err error)
 	}
 
 	earliest := time.Now().Add(-time.Hour * 24 * time.Duration(day))
-	if earliest.After(*end) || earliest.After(*start) {
+	if earliest.After(*end) {
+		err = fmt.Errorf("[%v ~ %v]时间范围太过久远，要求在 \"%s\" 之内。", start, end, retention)
+		return
+	}
+
+	if earliest.After(*start) {
 		warn = fmt.Errorf("[%v ~ %v]时间可能超出范围，不一定能获取到有效数据。最好在 \"%s\" 之内。", start, end, retention)
 	}
 	return

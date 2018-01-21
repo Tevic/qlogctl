@@ -54,7 +54,6 @@ func checkCtlArg(arg *CtlArg, info *logCtlInfo) (warn, err error) {
 	if err != nil {
 		return
 	}
-
 	if len(arg.Fields) == 0 {
 		arg.Fields = "*"
 	}
@@ -69,12 +68,10 @@ func checkCtlArg(arg *CtlArg, info *logCtlInfo) (warn, err error) {
 
 // retention :eg: 7d, 30d
 func checkInRetention(start, end *time.Time, retention string) (warn, err error) {
-
 	//forever storage
 	if strings.TrimSpace(retention) == "-1" {
 		return
 	}
-
 	day := 0
 	for _, c := range retention {
 		if unicode.IsDigit(c) {
@@ -128,7 +125,7 @@ func buildQueryStr(pquery *string, info *logCtlInfo, arg *CtlArg) (sort string) 
 	if len(dateField) != 0 {
 		query := *pquery
 		if len(query) != 0 {
-			query += " AND "
+			query = "(" + query + ") AND "
 		}
 		query += dateField + ":[" + arg.Start.Format(DateLayout) +
 			" TO " + arg.End.Format(DateLayout) + "]"

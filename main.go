@@ -12,7 +12,7 @@ func main() {
 		Name:      "qlogctl",
 		Usage:     "query logs from logdb",
 		UsageText: " command [command options] [arguments...] ",
-		Version:   "0.0.6",
+		Version:   "0.0.7",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name: "debug",

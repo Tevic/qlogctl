@@ -1,0 +1,10 @@
+package: github.com/qiniuts/qlogctl
+import:
+- package: github.com/qiniu/pandora-go-sdk
+  subpackages:
+  - base
+  - logdb
+- package: gopkg.in/urfave/cli.v2
+  version: ^2
+- package: github.com/qiniu/log
+  version: ^1.0.0

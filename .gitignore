@@ -10,9 +10,14 @@ bin/
 pkg/
 .idea/
 
+# vendor
+vendor/
+
 .DS_Store
-logctl
+*logctl
+customer-config.json
 
 *.exe
 *.test
 *.prof
+*.py

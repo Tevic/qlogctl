@@ -1,0 +1,18 @@
+hash: d9a47f464d46fa63c259f7509cead8f352e3f7cfa5705d72fa694b92132a1252
+updated: 2018-02-24T09:17:15.577906+08:00
+imports:
+- name: github.com/qiniu/log
+  version: 891d1cb5f635d169c0afc9f660a7f871bb01bb9c
+- name: github.com/qiniu/pandora-go-sdk
+  version: 0b0f9a2ab3caa06f402c2caa4ad34b6089e386f2
+  subpackages:
+  - base
+  - base/config
+  - base/models
+  - base/ratelimit
+  - base/reqerr
+  - base/request
+  - logdb
+- name: gopkg.in/urfave/cli.v2
+  version: d3ae77c26ac8db90639677e4831a728d33c36111
+testImports: []

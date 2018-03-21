@@ -11,70 +11,56 @@ import (
 )
 
 var (
-	listRepo = &cli.Command{
-		Name:      "list",
-		Aliases:   []string{"l"},
-		Usage:     "列取当前账号下所有的仓库",
-		ArgsUsage: " ",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    "verbose",
-				Aliases: []string{"v"},
-				Value:   false,
-				Usage:   "verbose",
-			},
-		},
-		Action: func(c *cli.Context) (err error) {
-			conf, err := loadConfigAndMergeFlag(c)
-			if err != nil {
-				return
-			}
-			err = api.ListRepos(&conf, c.Bool("verbose"))
-			return
-		},
+	debugFlag = &cli.BoolFlag{
+		Name:   "debug",
+		Hidden: true,
 	}
 
-	querySample = &cli.Command{
-		Name:    "sample",
-		Aliases: []string{"s"},
-		Usage:   "显示一条样例记录",
-		Flags: []cli.Flag{
-			ak, sk, repo,
-		},
-		Action: func(c *cli.Context) (err error) {
-			conf, err := loadConfigAndMergeFlag(c)
-			if err != nil {
-				return
-			}
-			err = api.QuerySample(&conf)
-			return
-		},
+	debugFlag2 = &cli.BoolFlag{
+		Name:   "debug",
+		Hidden: true,
 	}
 
-	ak = &cli.StringFlag{
+	configFlag = &cli.StringFlag{
+		Name:    "config",
+		Aliases: []string{"c"},
+		Usage:   "config file",
+	}
+
+	akFlag = &cli.StringFlag{
 		Name:  "ak",
 		Usage: "设置 ak ，即 AccessKey ；优先级高于配置文件内容",
 	}
 
-	sk = &cli.StringFlag{
+	skFlag = &cli.StringFlag{
 		Name:  "sk",
 		Usage: "设置 sk ，即 SecretKey ；优先级高于配置文件内容",
 	}
 
-	repo = &cli.StringFlag{
+	repoFlag = &cli.StringFlag{
 		Name:  "repo",
 		Usage: "设置 repo，即 logdb 的名称 ；优先级高于配置文件内容",
 	}
 
 	dateFieldFlag = &cli.StringFlag{
 		Name:  "dateField",
-		Usage: "时间范围所作用的字段，如 timestamp 。若未设置，将自动寻找 repo 中类型为 date 的字段",
+		Usage: "时间范围所作用的字段，如 timestamp 。若不指定，将自动寻找 repo 中类型为 date 的字段，没找到则忽略时间设置",
 	}
 
-	orderFlag = &cli.StringFlag{
+	orderFieldFlag = &cli.StringFlag{
+		Name:  "orderField",
+		Usage: "排序的字段。若不指定，则查找类型为 date 的字段，没找到则不排序",
+	}
+
+	orderTypeFlag = &cli.StringFlag{
 		Name:  "order",
 		Value: "desc",
-		Usage: "排序方式 desc 或 asc 。按时间字段排序",
+		Usage: "排序方式降序 desc 或升序 asc 。按指定的字段排序",
+	}
+
+	sortFlag = &cli.StringFlag{
+		Name:  "sort",
+		Usage: "排序，field1:asc,field2:desc, …。field 是实际字段名，asc代表升序，desc 代表降序。用逗号进行分隔。若设置此参数，则忽略“orderField”“order”参数",
 	}
 
 	showfieldsFlag = &cli.StringFlag{
@@ -83,24 +69,70 @@ var (
 		Usage: "显示哪些字段，默认 * ，即全部。以逗号 , 分割，忽略空格。如 \"time, *\"",
 	}
 
-	noIndex = &cli.BoolFlag{
+	noIndexFlag = &cli.BoolFlag{
 		Name:  "noIndex",
 		Usage: "查询结果是否显示行号",
 	}
 
-	split = &cli.StringFlag{
+	splitFlag = &cli.StringFlag{
 		Name:  "split",
 		Value: "\t",
 		Usage: "显示字段分隔符",
+	}
+
+	configFlags  = []cli.Flag{debugFlag, configFlag, akFlag, skFlag, repoFlag}
+	queryFlags   = []cli.Flag{dateFieldFlag, sortFlag, orderFieldFlag, orderTypeFlag}
+	showLogFlags = []cli.Flag{showfieldsFlag, noIndexFlag, splitFlag}
+
+	listRepo = &cli.Command{
+		Name:      "list",
+		Aliases:   []string{"l"},
+		Usage:     "列取当前账号下所有的仓库",
+		ArgsUsage: " ",
+		Flags: append(configFlags,
+			&cli.BoolFlag{
+				Name:    "verbose",
+				Aliases: []string{"v"},
+				Value:   false,
+				Usage:   "verbose",
+			},
+		),
+		Action: func(c *cli.Context) (err error) {
+			conf, err := loadConfigAndMergeFlag(c, false)
+			if err != nil {
+				return
+			}
+			err = api.ListRepos(conf, c.Bool("verbose"))
+			return
+		},
+	}
+
+	querySample = &cli.Command{
+		Name:    "sample",
+		Aliases: []string{"s"},
+		Usage:   "显示一条样例记录",
+		Flags:   configFlags,
+		Action: func(c *cli.Context) (err error) {
+			conf, err := loadConfigAndMergeFlag(c, true)
+			if err != nil {
+				return
+			}
+			err = api.QuerySample(conf)
+			return
+		},
 	}
 
 	query = &cli.Command{
 		Name:      "query",
 		Aliases:   []string{"q"},
 		Usage:     "在时间范围内查询 logdb 内的日志",
-		ArgsUsage: " <query> ",
-		Flags: []cli.Flag{
-			ak, sk, repo,
+		ArgsUsage: " <query> \n 如 id:'\"abc*\"', id:abcd.jpg",
+		Flags: append(append(append(configFlags, queryFlags...),
+			&cli.StringFlag{
+				Name:    "where",
+				Aliases: []string{"w"},
+				Usage:   "查询条件。建议将内容写在单引号内。若不指定此参数，则使用 非指令标记 的所有内容作为查询条件",
+			},
 			&cli.BoolFlag{
 				Name:    "scroll",
 				Aliases: []string{"all"},
@@ -112,7 +144,6 @@ var (
 				Usage:       "查询数据条数，默认 100，最大值 10000；有 --scroll 标记时内部会多次拉取数据，表示“每次”拉取的条数，默认 2000 (获取满足条件的所有数据)。",
 				DefaultText: " ",
 			},
-			dateFieldFlag,
 			&cli.StringFlag{
 				Name:    "start",
 				Aliases: []string{"s"},
@@ -126,13 +157,13 @@ var (
 			&cli.Float64Flag{
 				Name:        "day",
 				Aliases:     []string{"d"},
-				Usage:       "从当前时间往前推指定天，如 2.5。 day hour minute 可同时提供，",
+				Usage:       "从当前时间往前推指定天，即 24 小时，如 2.5。 day hour minute 可同时提供，",
 				DefaultText: "",
 			},
 			&cli.Float64Flag{
 				Name:        "hour",
 				Aliases:     []string{"H"},
-				Usage:       "从当前时间往前推指定小时，如 2.5",
+				Usage:       "从当前时间往前推指定小时，即 60 分，如 2.5",
 				DefaultText: "",
 			},
 			&cli.Float64Flag{
@@ -140,86 +171,27 @@ var (
 				Aliases:     []string{"m"},
 				Usage:       "从当前时间往前推指定分钟，如 30",
 				DefaultText: "",
-			},
-			orderFlag, showfieldsFlag, noIndex, split,
-		},
+			}),
+			showLogFlags...),
 		Action: func(c *cli.Context) (err error) {
-			conf, err := loadConfigAndMergeFlag(c)
+			conf, err := loadConfigAndMergeFlag(c, true)
 			if err != nil {
 				return
 			}
-			var startDate time.Time
-			var endDate time.Time
-			start := c.String("start")
-			end := c.String("end")
-			if len(start) != 0 {
-				startDate, err = normalizeDate(start)
-				if err != nil {
-					return
-				}
-			}
-			if len(end) != 0 {
-				endDate, err = normalizeDate(end)
-				if err != nil {
-					return
-				}
-			}
-			if (len(start) == 0) && (len(end) == 0) {
-				day := c.Float64("day")
-				hour := c.Float64("hour")
-				minute := c.Float64("minute")
 
-				m := day*24*60 + hour*60 + minute
-				// 浮点数，不能通过 m != 0 判断
-				if m > 0.05 {
-					startDate = time.Now().Add(-time.Duration(m) * time.Minute)
-					endDate = time.Now()
-				}
-			}
-
-			arg := &api.CtlArg{
-				Fields:    c.String("showfields"),
-				Sort:      c.String("order"),
-				DateField: c.String("dateField"),
-				Start:     startDate,
-				End:       endDate,
-				ShowIndex: !c.Bool("noIndex"),
-				Split:     c.String("split"),
-				Scroll:    c.Bool("scroll"),
-			}
-
-			if (arg.Start).After(arg.End) {
-				start := arg.Start
-				arg.Start = arg.End
-				arg.End = start
-			}
-			if arg.End.IsZero() {
-				arg.End = time.Now()
-			}
-			if arg.Start.IsZero() {
-				arg.Start = arg.End.Add(-time.Minute * 5)
-			}
-
+			arg := mergeArgFlag(c)
+			start, end, err := mergeDateTimeFlag(c)
 			if err != nil {
 				return
 			}
-			if len(arg.Fields) == 0 {
-				arg.Fields = "*"
+			arg.Start = start
+			arg.End = end
+
+			query := c.String("where")
+			if strings.TrimSpace(query) == "" {
+				query = strings.Join(c.Args().Slice(), " ")
 			}
-			if len(arg.Sort) == 0 {
-				arg.Sort = "desc"
-			}
-			if c.Int("preSize") < 1 {
-				if c.Bool("scroll") {
-					arg.PreSize = 2000
-				} else {
-					arg.PreSize = 100
-				}
-			} else {
-				arg.PreSize = api.MinInt(c.Int("preSize"), 10000)
-			}
-			query := strings.Join(c.Args().Slice(), " ")
-			err = api.Query(&conf, query, arg)
+			err = api.Query(conf, query, arg)
 			return
 		},
 	}
@@ -227,30 +199,37 @@ var (
 	queryByReqid = &cli.Command{
 		Name:      "reqid",
 		Usage:     "通过 reqid 查询日志。",
-		UsageText: "查询条件为 reqid ，解析 reqid 设置时间范围。若未提供查询字段 [--field <reqidField>]，则查看 repo 是否有 reqid、resppreSizeer 字段",
+		UsageText: "查询条件为 reqid ，解析 reqid 设置时间范围: [field:] <reqidField>.若未提供查询字段 ，则查看 repo 是否有 reqid、resppreSizeer 字段",
 		// ArgsUsage: " [<field>:]<reqid> ",
-		Flags: []cli.Flag{
-			ak, sk, repo,
+		Flags: append(append(append(configFlags, queryFlags...),
 			&cli.StringFlag{
-				Name:  "field",
-				Usage: "指定包含 reqid 的字段名",
-			},
-			dateFieldFlag, orderFlag, showfieldsFlag, noIndex, split,
-		},
+				Name:    "where",
+				Aliases: []string{"w"},
+				Usage:   "查询条件。[field:] <reqidField>。若不指定此参数，则使用 非指令标记 的所有内容作为查询条件",
+			}),
+			showLogFlags...),
 		Action: func(c *cli.Context) (err error) {
-			conf, err := loadConfigAndMergeFlag(c)
+			conf, err := loadConfigAndMergeFlag(c, true)
 			if err != nil {
 				return
 			}
-			arg := &api.CtlArg{
-				Fields:    c.String("showfields"),
-				Sort:      c.String("order"),
-				DateField: c.String("dateField"),
-				ShowIndex: !c.Bool("noIndex"),
-				Split:     c.String("split"),
-				PreSize:   c.Int("preSize"),
+			arg := mergeArgFlag(c)
+			w := c.String("where")
+			if strings.TrimSpace(w) == "" {
+				w = c.Args().Get(0)
 			}
-			err = api.QueryReqid(&conf, c.Args().Get(0), c.String("field"), arg)
+			w = strings.TrimSpace(w)
+			ss := strings.Split(w, ":")
+			reqid := ss[len(ss)-1]
+			field := ""
+			if len(ss) > 1 {
+				field = strings.Join(ss[:len(ss)-1], ":")
+			}
+			if reqid == "" {
+				err = errors.New("ERROR: HAVE NOT set repo ")
+				return
+			}
+			err = api.QueryReqid(conf, reqid, field, arg)
 			return
 		},
 	}
@@ -262,17 +241,6 @@ func BuildApp() *cli.App {
 		Usage:     "query logs from logdb",
 		UsageText: " command [command options] [arguments...] ",
 		Version:   "0.1.0",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:   "debug",
-				Hidden: true,
-			},
-			&cli.StringFlag{
-				Name:    "config",
-				Aliases: []string{"c"},
-				Usage:   "config file",
-			},
-		},
 		Commands: []*cli.Command{
 			listRepo, querySample,
 			query, queryByReqid,
@@ -282,12 +250,13 @@ func BuildApp() *cli.App {
 	return &app
 }
 
-func loadConfigAndMergeFlag(c *cli.Context) (conf api.Config, err error) {
+func loadConfigAndMergeFlag(c *cli.Context, needRepo bool) (*api.Config, error) {
 	configFilePath := c.String("config")
+	var conf = api.Config{}
 	if configFilePath != "" {
-		err = loadEx(&conf, &configFilePath)
+		err := loadEx(&conf, &configFilePath)
 		if err != nil {
-			return
+			return nil, err
 		}
 	}
 
@@ -319,8 +288,13 @@ func loadConfigAndMergeFlag(c *cli.Context) (conf api.Config, err error) {
 	conf.Repo = vsf
 
 	if conf.Ak == "" || conf.Sk == "" {
-		err = errors.New("ERROR: HAVE NOT set ak and/or sk ")
-		return
+		err := errors.New("ERROR: HAVE NOT set ak and/or sk ")
+		return nil, err
+	}
+
+	if needRepo && len(conf.Repo) == 0 {
+		err := errors.New("ERROR: HAVE NOT set repo ")
+		return nil, err
 	}
 
 	logLevel := log.Linfo
@@ -329,5 +303,80 @@ func loadConfigAndMergeFlag(c *cli.Context) (conf api.Config, err error) {
 	}
 	log.SetOutputLevel(logLevel)
 
+	return &conf, nil
+}
+
+func mergeArgFlag(c *cli.Context) *api.CtlArg {
+	arg := &api.CtlArg{
+		Fields:     c.String("showfields"),
+		DateField:  c.String("dateField"),
+		Sort:       c.String("sort"),
+		OrderField: c.String("orderField"),
+		OrderType:  c.String("order"),
+		ShowIndex:  !c.Bool("noIndex"),
+		Split:      c.String("split"),
+		PreSize:    c.Int("preSize"),
+		Scroll:     c.Bool("scroll"),
+	}
+	if len(arg.Fields) == 0 {
+		arg.Fields = "*"
+	}
+	if arg.OrderType != "asc" {
+		arg.OrderType = "desc"
+	}
+	if arg.PreSize < 1 {
+		if arg.Scroll {
+			arg.PreSize = 2000
+		} else {
+			arg.PreSize = 100
+		}
+	} else {
+		arg.PreSize = api.MinInt(arg.PreSize, 10000)
+	}
+	return arg
+}
+
+func mergeDateTimeFlag(c *cli.Context) (startDate *time.Time,
+	endDate *time.Time, err error) {
+	startDate = &time.Time{}
+	endDate = &time.Time{}
+
+	start := c.String("start")
+	end := c.String("end")
+	if len(start) != 0 {
+		*startDate, err = normalizeDate(start)
+		if err != nil {
+			return
+		}
+	}
+	if len(end) != 0 {
+		*endDate, err = normalizeDate(end)
+		if err != nil {
+			return
+		}
+	}
+	if (len(start) == 0) && (len(end) == 0) {
+		day := c.Float64("day")
+		hour := c.Float64("hour")
+		minute := c.Float64("minute")
+
+		m := day*24*60 + hour*60 + minute
+		// 浮点数，不能通过 m != 0 判断
+		if m > 0.05 {
+			*startDate = time.Now().Add(-time.Duration(m) * time.Minute)
+			*endDate = time.Now()
+		}
+	}
+	if (*startDate).After(*endDate) {
+		temp := startDate
+		startDate = endDate
+		endDate = temp
+	}
+	if endDate.IsZero() {
+		*endDate = time.Now()
+	}
+	if startDate.IsZero() {
+		*startDate = (*endDate).Add(-time.Minute * 5)
+	}
 	return
 }

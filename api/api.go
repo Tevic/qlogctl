@@ -21,16 +21,18 @@ const (
 )
 
 type CtlArg struct {
-	Fields    string    // 显示展示哪些字段，* 表示全部字段。字段名以逗号 , 分割，忽略空格
-	ShowIndex bool      // 是否显示行号
-	Split     string    // 显示时，各字段的分割方式
-	DateField string    //时间范围所作用的字段，如 timestamp
-	Sort      string    // 排序方式 desc 或 asc 。按时间字段排序
-	Start     time.Time // 查询的起始时间
-	End       time.Time // 查询的结束时间
-	PreSize   int       // 每次查询多少条
-	Scroll    bool      // 是否使用 scroll 方式拉取数据
-	fields    []logdb.RepoSchemaEntry
+	Fields     string     // 显示展示哪些字段，* 表示全部字段。字段名以逗号 , 分割，忽略空格
+	ShowIndex  bool       // 是否显示行号
+	Split      string     // 显示时，各字段的分割方式
+	DateField  string     //时间范围所作用的字段，如 timestamp
+	OrderField string     // 排序字段
+	OrderType  string     // 排序方式 desc 或 asc
+	Sort       string     // 最终排序参数
+	Start      *time.Time // 查询的起始时间
+	End        *time.Time // 查询的结束时间
+	PreSize    int        // 每次查询多少条
+	Scroll     bool       // 是否使用 scroll 方式拉取数据
+	fields     []logdb.RepoSchemaEntry
 }
 
 type Config struct {
@@ -204,9 +206,12 @@ func Query(conf *Config, query string, arg *CtlArg) (err error) {
 	if err != nil {
 		return
 	}
-	warn := checkInRetention(&arg.Start, &arg.End, strings.ToLower(repoInfo.Retention))
-	log.Warn(warn)
-	sort := buildQueryStr(logdbClient, conf, repoInfo, &query, arg)
+	// warn := checkInRetention(arg.Start, arg.End, strings.ToLower(repoInfo.Retention))
+	// log.Warn(warn)
+	sort, err := buildQueryStr(logdbClient, conf, repoInfo, &query, arg)
+	if err != nil {
+		return
+	}
 	err = execQuery(logdbClient, conf, repoInfo, &query, arg, sort)
 	return
 }
@@ -248,8 +253,11 @@ func checkInRetention(start, end *time.Time, retention string) (warn error) {
 }
 
 func buildQueryStr(logdbClient *logdb.LogdbAPI, conf *Config,
-	repoInfo *logdb.GetRepoOutput, pquery *string, arg *CtlArg) (sort string) {
-	dateField, sort := getDateFieldAndSort(logdbClient, conf, repoInfo, &arg.DateField, &arg.Sort)
+	repoInfo *logdb.GetRepoOutput, pquery *string, arg *CtlArg) (sort string, err error) {
+	dateField, sort, err := getDateFieldAndSort(logdbClient, conf, repoInfo, arg)
+	if err != nil {
+		return
+	}
 	if len(dateField) != 0 {
 		query := *pquery
 		if len(query) != 0 {
@@ -263,17 +271,40 @@ func buildQueryStr(logdbClient *logdb.LogdbAPI, conf *Config,
 }
 
 func getDateFieldAndSort(logdbClient *logdb.LogdbAPI, conf *Config,
-	repoInfo *logdb.GetRepoOutput, dateField, order *string) (string, string) {
-	if len(*dateField) > 0 {
-		return *dateField, *dateField + ":" + *order
+	repoInfo *logdb.GetRepoOutput, arg *CtlArg) (dateField string, sort string, err error) {
+	if len(arg.Sort) > 0 {
+		sort = arg.Sort
+	}
+	if len(sort) == 0 && len(arg.OrderField) > 0 {
+		sort = arg.OrderField + ":" + arg.OrderType
+	}
+
+	if len(arg.DateField) > 0 {
+		dateField = arg.DateField
+		if len(sort) == 0 {
+			sort = dateField + ":" + arg.OrderType
+		}
+		return
+	}
+
+	if repoInfo == nil {
+		repoInfo, err = getRepoInfo(logdbClient, conf)
+		if err != nil {
+			return
+		}
 	}
 
 	for _, e := range repoInfo.Schema {
 		if e.ValueType == "date" {
-			return e.Key, e.Key + ":" + *order
+			dateField = e.Key
+			break
 		}
 	}
-	return "", ""
+
+	if len(sort) == 0 && len(dateField) != 0 {
+		sort = dateField + ":" + arg.OrderType
+	}
+	return
 }
 
 func execQuery(logdbClient *logdb.LogdbAPI, conf *Config, repoInfo *logdb.GetRepoOutput,
@@ -329,7 +360,6 @@ func showLogs(conf *Config, repoInfo *logdb.GetRepoOutput, logs *logdb.QueryLogO
 }
 
 func QueryReqid(conf *Config, reqid string, reqidField string, arg *CtlArg) (err error) {
-	log.Debugf("%v: %v", reqidField, reqid)
 	unixNano, err := parseReqid(reqid)
 	if err != nil {
 		err = fmt.Errorf("reqid：%v 格式不正确：%v", reqid, err)
@@ -349,14 +379,20 @@ func QueryReqid(conf *Config, reqid string, reqidField string, arg *CtlArg) (err
 	}
 
 	if len(reqidField) == 0 {
-		err = errors.New("没有找到合适的字段用于查询 reqid，请使用 --reqidField <reqidField> 指定字段")
+		err = errors.New("没有找到合适的字段用于查询 reqid，请使用  <field:><reqid> 同时指定字段和reqid")
 		return
 	}
 	query := reqidField + ":" + reqid
 	t := time.Unix(unixNano/1e9, 0)
-	arg.Start = t.Add(-time.Minute * 3)
-	arg.End = t.Add(time.Minute * 10)
-	logs, err := doQuery(logdbClient, conf, &query, "", 1000, arg.Scroll)
+	st := t.Add(-time.Minute * 3)
+	et := t.Add(time.Minute * 10)
+	arg.Start = &st
+	arg.End = &et
+	sort, err := buildQueryStr(logdbClient, conf, repoInfo, &query, arg)
+	if err != nil {
+		return
+	}
+	logs, err := doQuery(logdbClient, conf, &query, sort, 10000, arg.Scroll)
 	if err != nil {
 		return
 	}

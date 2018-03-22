@@ -186,6 +186,7 @@ var (
 			}
 			arg.Start = start
 			arg.End = end
+			conf.Gzip = arg.Scroll
 
 			query := c.String("where")
 			if strings.TrimSpace(query) == "" {

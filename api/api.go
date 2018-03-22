@@ -40,6 +40,7 @@ type Config struct {
 	Sk    string   `json:"sk"`
 	Repo  []string `json:"repo"`
 	Debug bool     `json:"debug"`
+	Gzip  bool
 }
 
 func ListRepos(conf *Config, verbose bool) (err error) {
@@ -326,12 +327,22 @@ func execQuery(logdbClient *logdb.LogdbAPI, conf *Config, repoInfo *logdb.GetRep
 		scrollInput := &logdb.QueryScrollInput{
 			RepoName: conf.Repo[0],
 			ScrollId: logs.ScrollId,
-			Scroll:   "3m",
+			Scroll:   "8m",
 		}
 		logs, err = (*logdbClient).QueryScroll(scrollInput)
 		if err != nil {
-			log.Error(err)
-			return
+			sleep := []time.Duration{5, 15, 35, 65, 65, 65}
+			for _, s := range sleep {
+				time.Sleep(s * time.Second)
+				logs, err = (*logdbClient).QueryScroll(scrollInput)
+				if err == nil {
+					break
+				}
+			}
+			if err != nil {
+				log.Error(err)
+				return
+			}
 		}
 		log.Debugf("scroll: %v, logstotal:%v, state:%v, size: %v, total: %v\n", logs.ScrollId, logs.Total, logs.PartialSuccess, size, total)
 		showLogs(conf, repoInfo, logs, arg, total)
@@ -449,7 +460,7 @@ func doQuery(logdbClient *logdb.LogdbAPI, conf *Config, qstr *string, sort strin
 		Size:     size,
 	}
 	if srcoll {
-		queryInput.Scroll = "3m"
+		queryInput.Scroll = "8m"
 	}
 
 	log.Debugf("%+v\n", *queryInput)
@@ -462,6 +473,7 @@ func buildClient(conf *Config) (*logdb.LogdbAPI, error) {
 		WithEndpoint("https://logdb.qiniu.com").
 		WithDialTimeout(30 * time.Second).
 		WithResponseTimeout(120 * time.Second).
+		WithGzipData(conf.Gzip).
 		WithLogger(base.NewDefaultLogger()).
 		WithLoggerLevel(base.LogDebug)
 	client, err := logdb.New(cfg)

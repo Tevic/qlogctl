@@ -74,4 +74,4 @@ repo 要求为包含字符串的数组；
 
  * [darwin 版本](http://devtools.qiniu.com/qlogctl_darwin_amd64_0.1.0?t=1522228068)
 
- * [linux 版本](http://devtools.qiniu.com/qlogctl_linux_amd64_0.1.0t=1522228068)
+ * [linux 版本](http://devtools.qiniu.com/qlogctl_linux_amd64_0.1.0?t=1522228068)

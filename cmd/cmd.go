@@ -12,19 +12,14 @@ import (
 
 var (
 	debugFlag = &cli.BoolFlag{
-		Name:   "debug",
-		Hidden: true,
-	}
-
-	debugFlag2 = &cli.BoolFlag{
-		Name:   "debug",
-		Hidden: true,
+		Name:  "debug",
+		Usage: "打印部分内部信息",
 	}
 
 	configFlag = &cli.StringFlag{
 		Name:    "config",
 		Aliases: []string{"c"},
-		Usage:   "config file",
+		Usage:   "ak sk repo 等信息的配置文件， json 格式 ",
 	}
 
 	akFlag = &cli.StringFlag{
@@ -55,7 +50,7 @@ var (
 	orderTypeFlag = &cli.StringFlag{
 		Name:  "order",
 		Value: "desc",
-		Usage: "排序方式降序 desc 或升序 asc 。按指定的字段排序",
+		Usage: "排序方式。若不是升序 asc 则设置为 降序 desc 。按指定的字段排序",
 	}
 
 	sortFlag = &cli.StringFlag{

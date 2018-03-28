@@ -1,7 +1,6 @@
 clean:
 	go clean -i ./..
 
-
 build: darwinx64 linuxx64
 
 darwinx64:

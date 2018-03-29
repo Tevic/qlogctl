@@ -80,7 +80,7 @@ func trimCommentsLine(line []byte) []byte {
 			quoteCount++
 		}
 		if line[i] == '#' {
-			// 引号成对出现，若出现双数个，表示 # 不在 引号 内，即 从 i 开始，含 i，后续内容为注释；
+			// 引号成对出现，若出现双数个，表示 # 不在 引号 内，即 从 i 开始，后续内容为注释；
 			// 注释内容直接丢弃，即新行的内容不包含这些内容。
 			if quoteCount%2 == 0 {
 				break

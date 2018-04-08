@@ -47,23 +47,23 @@ repo 要求为包含字符串的数组；
 其它字段会被忽略。
 ```
 {
-    "ak"="My AccessKey",
-    "sk"="My SecretKey",
-    "repo"=["My RepoName1"]
+    "ak":"My AccessKey",
+    "sk":"My SecretKey",
+    "repo":["RepoName1"]
 }
 ```
 也支持如下格式:
 ```
 {
     # 非引号内，以#号开始到行尾，为注释，会被忽略
-    #"ak"="My AccessKey"
-    #,"sk"="My SecretKey"
-    #,"repo"=["My RepoName1"] # 当前只有第一个 repo 有效 
+    #"ak":"My AccessKey"
+    #,"sk":"My SecretKey"
+    #,"repo":["RepoName1"] # 当前只有第一个 repo 有效 
 
     # 账号 B
-    "ak"="My AccessKey"
-    ,"sk"="My SecretKey"
-    ,"repo"=["My RepoName1"]
+    "ak":"My AccessKey"
+    ,"sk":"My SecretKey"
+    ,"repo":["RepoName1"]
 }
 ```
 

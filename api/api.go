@@ -331,6 +331,9 @@ func execQuery(logdbClient *logdb.LogdbAPI, conf *Config, repoInfo *logdb.GetRep
 		}
 		logs, err = (*logdbClient).QueryScroll(scrollInput)
 		if err != nil {
+			// 重试 scroll 查询
+			// scroll 在服务端有有效期，过期后 ScrollId 不再有意义，不能过太久后再重试。
+			// ScrollId 序列化到磁盘没有意义。
 			sleep := []time.Duration{5, 15, 35, 65, 65, 65}
 			for _, s := range sleep {
 				time.Sleep(s * time.Second)

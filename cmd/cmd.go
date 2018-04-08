@@ -181,11 +181,15 @@ var (
 			}
 			arg.Start = start
 			arg.End = end
-			conf.Gzip = arg.Scroll
+			conf.Gzip = arg.Scroll // 若查询大量数据，则启用压缩
 
 			query := c.String("where")
 			if strings.TrimSpace(query) == "" {
 				query = strings.Join(c.Args().Slice(), " ")
+			}
+			if strings.TrimSpace(query) == "" {
+				err = errors.New("ERROR: no query condition")
+				return
 			}
 			err = api.Query(conf, query, arg)
 			return
